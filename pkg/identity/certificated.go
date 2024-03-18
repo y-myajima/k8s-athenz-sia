@@ -17,8 +17,6 @@ package identity
 import (
 	"fmt"
 	"math/rand"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,11 +30,6 @@ import (
 )
 
 func Certificated(idConfig *config.IdentityConfig, stopChan <-chan struct{}) (error, <-chan struct{}) {
-
-	go func() {
-		log.Warn("🌟pprof server start~")
-		http.ListenAndServe(":6083", nil)
-	}()
 
 	if stopChan == nil {
 		panic(fmt.Errorf("Certificated: stopChan cannot be empty"))
