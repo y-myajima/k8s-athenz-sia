@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	_ "net/http/pprof"
 	"path/filepath"
 	"runtime/metrics"
 	"sync"
