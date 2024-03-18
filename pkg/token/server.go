@@ -311,3 +311,10 @@ func newHandlerFunc(d *daemon, timeout time.Duration, logLevel string) http.Hand
 	// logging && timeout handler
 	return http.TimeoutHandler(http.HandlerFunc(mainHandler), timeout, "Handler timeout by token-server-timeout")
 }
+
+// contextKey is used to create context key to avoid collision
+type contextKey struct {
+	name string
+}
+
+var contextKeyRequestID = &contextKey{"requestID"}
