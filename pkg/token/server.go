@@ -15,6 +15,7 @@
 package token
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	"time"
 
 	"github.com/AthenZ/k8s-athenz-sia/v3/third_party/log"
+	"github.com/google/uuid"
 )
 
 const (
@@ -208,7 +210,7 @@ func postAccessToken(d *daemon, w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func newHandlerFunc(d *daemon, timeout time.Duration, logLevel string) http.Handler {
+func newHandlerFunc(d *daemon, timeout time.Duration) http.Handler {
 	// main handler is responsible to monitor whether the request context is cancelled
 	mainHandler := func(w http.ResponseWriter, r *http.Request) {
 		requestID := r.Context().Value(contextKeyRequestID).(string)
@@ -309,7 +311,7 @@ func newHandlerFunc(d *daemon, timeout time.Duration, logLevel string) http.Hand
 	}
 
 	// logging && timeout handler
-	return http.TimeoutHandler(http.HandlerFunc(mainHandler), timeout, "Handler timeout by token-server-timeout")
+	return withLogging(http.TimeoutHandler(http.HandlerFunc(mainHandler), timeout, "Handler timeout by token-server-timeout"))
 }
 
 // contextKey is used to create context key to avoid collision
@@ -318,3 +320,38 @@ type contextKey struct {
 }
 
 var contextKeyRequestID = &contextKey{"requestID"}
+
+// withLogging wraps handler with logging and request ID injection
+func withLogging(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := uuid.New().String()
+		ctx := context.WithValue(r.Context(), contextKeyRequestID, requestID)
+
+		startTime := time.Now()
+		log.Debugf("Received request: method[%s], endpoint[%s], remoteAddr[%s] requestID[%s]", r.Method, r.RequestURI, r.RemoteAddr, requestID)
+
+		// wrap ResponseWriter to cache status code
+		wrappedWriter := newLoggingResponseWriter(w)
+		handler.ServeHTTP(wrappedWriter, r.WithContext(ctx))
+
+		latency := time.Since(startTime)
+		statusCode := wrappedWriter.statusCode
+		log.Debugf("Response sent: statusCode[%d], latency[%s], requestID[%s]", statusCode, latency, requestID)
+	})
+}
+
+// loggingResponseWriter is wrapper for http.ResponseWriter
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+// WriteHeader calls underlying WriteHeader method
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
+func newLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
+	return &loggingResponseWriter{w, http.StatusOK}
+}
