@@ -210,7 +210,7 @@ func postAccessToken(d *daemon, w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func newHandlerFunc(d *daemon, timeout time.Duration) http.Handler {
+func newHandlerFunc(d *daemon, timeout time.Duration, logLevel string) http.Handler {
 	// main handler is responsible to monitor whether the request context is cancelled
 	mainHandler := func(w http.ResponseWriter, r *http.Request) {
 		requestID := r.Context().Value(contextKeyRequestID).(string)
@@ -311,7 +311,10 @@ func newHandlerFunc(d *daemon, timeout time.Duration) http.Handler {
 	}
 
 	// logging && timeout handler
-	return withLogging(http.TimeoutHandler(http.HandlerFunc(mainHandler), timeout, "Handler timeout by token-server-timeout"))
+	if logLevel == "DEBUG" {
+		return withLogging(http.TimeoutHandler(http.HandlerFunc(mainHandler), timeout, "Handler timeout by token-server-timeout"))
+	}
+	return http.TimeoutHandler(http.HandlerFunc(mainHandler), timeout, "Handler timeout by token-server-timeout")
 }
 
 // contextKey is used to create context key to avoid collision
@@ -328,7 +331,7 @@ func withLogging(handler http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), contextKeyRequestID, requestID)
 
 		startTime := time.Now()
-		log.Infof("Received request: method[%s], endpoint[%s], remoteAddr[%s] requestID[%s]", r.Method, r.RequestURI, r.RemoteAddr, requestID)
+		log.Debugf("Received request: method[%s], endpoint[%s], remoteAddr[%s] requestID[%s]", r.Method, r.RequestURI, r.RemoteAddr, requestID)
 
 		// wrap ResponseWriter to cache status code
 		wrappedWriter := newLoggingResponseWriter(w)
@@ -336,7 +339,7 @@ func withLogging(handler http.Handler) http.Handler {
 
 		latency := time.Since(startTime)
 		statusCode := wrappedWriter.statusCode
-		log.Infof("Response sent: statusCode[%d], latency[%s], requestID[%s]", statusCode, latency, requestID)
+		log.Debugf("Response sent: statusCode[%d], latency[%s], requestID[%s]", statusCode, latency, requestID)
 	})
 }
 
