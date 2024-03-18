@@ -37,8 +37,7 @@ var (
 	ClientError = fmt.Errorf("Client error") // error should be fixed by the client-side, log as warning, response 4xx status code
 )
 
-func postRoleToken(d *daemon, w http.ResponseWriter, r *http.Request) {
-	requestID := r.Context().Value(contextKeyRequestID).(string)
+func postRoleToken(d *daemon, w http.ResponseWriter, r *http.Request, requestID string) {
 
 	var err error
 	defer func() {
@@ -123,8 +122,7 @@ func postRoleToken(d *daemon, w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func postAccessToken(d *daemon, w http.ResponseWriter, r *http.Request) {
-	requestID := r.Context().Value(contextKeyRequestID).(string)
+func postAccessToken(d *daemon, w http.ResponseWriter, r *http.Request, requestID string) {
 
 	var err error
 	defer func() {
@@ -213,7 +211,7 @@ func postAccessToken(d *daemon, w http.ResponseWriter, r *http.Request) {
 func newHandlerFunc(d *daemon, timeout time.Duration) http.Handler {
 	// main handler is responsible to monitor whether the request context is cancelled
 	mainHandler := func(w http.ResponseWriter, r *http.Request) {
-		requestID := r.Context().Value(contextKeyRequestID).(string)
+		requestID := uuid.New().String()
 		defer func() {
 			// handle panic, reference: https://github.com/golang/go/blob/go1.20.7/src/net/http/server.go#L1851-L1856
 			if err := recover(); err != nil && err != http.ErrAbortHandler {
@@ -229,12 +227,12 @@ func newHandlerFunc(d *daemon, timeout time.Duration) http.Handler {
 		if d.tokenRESTAPI {
 			// sidecar API (server requests' Body is always non-nil)
 			if d.tokenType&mROLE_TOKEN != 0 && r.RequestURI == "/roletoken" && r.Method == http.MethodPost {
-				postRoleToken(d, w, r)
+				postRoleToken(d, w, r, requestID)
 				return
 			}
 
 			if d.tokenType&mACCESS_TOKEN != 0 && r.RequestURI == "/accesstoken" && r.Method == http.MethodPost {
-				postAccessToken(d, w, r)
+				postAccessToken(d, w, r, requestID)
 				return
 			}
 		}
@@ -311,7 +309,9 @@ func newHandlerFunc(d *daemon, timeout time.Duration) http.Handler {
 	}
 
 	// logging && timeout handler
-	return withLogging(http.TimeoutHandler(http.HandlerFunc(mainHandler), timeout, "Handler timeout by token-server-timeout"))
+	return http.TimeoutHandler(http.HandlerFunc(mainHandler), timeout, "Handler timeout by token-server-timeout")
+
+	// return withLogging(http.TimeoutHandler(http.HandlerFunc(mainHandler), timeout, "Handler timeout by token-server-timeout"))
 }
 
 // contextKey is used to create context key to avoid collision
