@@ -379,7 +379,7 @@ func Tokend(idConfig *config.IdentityConfig, stopChan <-chan struct{}) (error, <
 	// start token server daemon
 	httpServer := &http.Server{
 		Addr:      idConfig.TokenServerAddr,
-		Handler:   newHandlerFunc(d, idConfig.TokenServerTimeout, idConfig.LogLevel),
+		Handler:   newHandlerFunc(d, idConfig.TokenServerTimeout),
 		TLSConfig: nil,
 	}
 	if idConfig.TokenServerTLSCertPath != "" && idConfig.TokenServerTLSKeyPath != "" {

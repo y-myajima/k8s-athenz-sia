@@ -16,8 +16,8 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	_ "net/http/pprof"
+
+	// _ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -79,10 +79,10 @@ func main() {
 	log.Infof("Starting [%s] with version [%s], built on [%s]", filepath.Base(os.Args[0]), VERSION, BUILD_DATE)
 	log.Infof("Booting up with args: %v, config: %+v", os.Args, idConfig)
 
-	go func() {
-		log.Warn("🌟pprof server start~")
-		http.ListenAndServe(":6083", nil)
-	}()
+	// go func() {
+	// 	log.Warn("🌟pprof server start~")
+	// 	http.ListenAndServe(":6083", nil)
+	// }()
 
 	certificateChan := make(chan struct{}, 1)
 	ch := make(chan os.Signal, 1)
